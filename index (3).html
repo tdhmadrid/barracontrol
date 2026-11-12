@@ -1,0 +1,514 @@
+<title>Inventario de Barra</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: barra superior con modo (Barra / Admin), contenido en una columna ancha; en Barra, rejilla de productos táctil + hoja de salida fija abajo */
+:root{
+  --bg:#f3f5f2; --surface:#ffffff; --sunk:#e7ebe6; --line:#d3d9d2;
+  --fg:#1c2420; --muted:#5d6a63;
+  --accent:#1f6b56; --accent-ink:#ffffff; --amber:#c27a12;
+  --ok:#2f7d4a; --warn:#b5710d; --bad:#b33a2b;
+  --ok-bg:#e3f1e7; --warn-bg:#fbefd9; --bad-bg:#f8e1dd;
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-num:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#121815; --surface:#1a221e; --sunk:#232d28; --line:#2f3b35;
+  --fg:#e6ece8; --muted:#97a69e;
+  --accent:#4fb393; --accent-ink:#0d1512; --amber:#e3a33e;
+  --ok:#6cc58b; --warn:#e3a33e; --bad:#ef7d6c;
+  --ok-bg:#1d3527; --warn-bg:#3a2d16; --bad-bg:#3d211d;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121815; --surface:#1a221e; --sunk:#232d28; --line:#2f3b35;
+  --fg:#e6ece8; --muted:#97a69e;
+  --accent:#4fb393; --accent-ink:#0d1512; --amber:#e3a33e;
+  --ok:#6cc58b; --warn:#e3a33e; --bad:#ef7d6c;
+  --ok-bg:#1d3527; --warn-bg:#3a2d16; --bad-bg:#3d211d;
+  color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.45}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.wrap{max-width:1080px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 120px}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+header.top .in{max-width:1080px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.brand{font-family:var(--f-display);font-weight:700;font-size:22px;letter-spacing:.02em;text-transform:uppercase;display:flex;align-items:center;gap:8px}
+.brand i{display:inline-block;width:10px;height:22px;border-radius:3px 3px 2px 2px;background:linear-gradient(var(--amber) 0 35%,var(--accent) 35%)}
+.spacer{flex:1}
+.seg{display:inline-flex;background:var(--sunk);border-radius:999px;padding:3px}
+.seg button{border:0;background:transparent;color:var(--muted);font:600 14px var(--f-body);padding:7px 14px;border-radius:999px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.status{font-size:13px;color:var(--muted)}
+h1,h2,h3{font-family:var(--f-display);font-weight:600;letter-spacing:.01em;text-wrap:balance;margin:0}
+h2{font-size:24px;text-transform:uppercase}
+h3{font-size:18px}
+.label{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.tabs{display:flex;gap:4px;margin:18px 0 14px;overflow-x:auto;border-bottom:1px solid var(--line)}
+.tabs button{border:0;background:none;color:var(--muted);font:600 15px var(--f-body);padding:10px 12px;border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--fg);border-color:var(--accent)}
+.notice{padding:12px 14px;border-radius:var(--r);background:var(--sunk);color:var(--muted);margin:16px 0;font-size:14px}
+.notice.bad{background:var(--bad-bg);color:var(--bad)}
+.summary{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;font-size:13px;font-weight:600;background:var(--sunk);color:var(--fg)}
+.chip.ok{background:var(--ok-bg);color:var(--ok)} .chip.warn{background:var(--warn-bg);color:var(--warn)} .chip.bad{background:var(--bad-bg);color:var(--bad)}
+.chip b{font-family:var(--f-num)}
+input,select,textarea{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 10px;width:100%;min-width:0}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn{border:0;border-radius:8px;padding:10px 16px;font:600 15px var(--f-body);cursor:pointer;background:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:var(--sunk);color:var(--fg)}
+.btn.danger{background:transparent;color:var(--bad);padding:6px 8px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;align-items:end;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-bottom:16px}
+.form .wide{grid-column:span 2}
+@media (max-width:520px){.form .wide{grid-column:auto}}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.tablebox{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;background:var(--sunk)}
+tr:last-child td{border-bottom:0}
+td.r,th.r{text-align:right}
+.stock{display:inline-flex;align-items:center;gap:8px}
+.bar{width:70px;height:6px;border-radius:3px;background:var(--sunk);overflow:hidden}
+.bar span{display:block;height:100%}
+.pill{font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px}
+.pill.ok{background:var(--ok-bg);color:var(--ok)} .pill.warn{background:var(--warn-bg);color:var(--warn)} .pill.bad{background:var(--bad-bg);color:var(--bad)}
+.m-personal{color:var(--accent)} .m-cocina{color:var(--amber)} .m-merma{color:var(--bad)}
+/* Barra (empleado) */
+.search{margin:16px 0 10px}
+.cats{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:10px}
+.cats button{border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:999px;padding:6px 12px;font:600 13px var(--f-body);cursor:pointer;white-space:nowrap}
+.cats button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.tile{border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:12px;text-align:left;cursor:pointer;color:var(--fg);display:flex;flex-direction:column;gap:6px;min-height:92px;font:inherit}
+.tile:hover{border-color:var(--accent)}
+.tile[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 2px var(--accent)}
+.tile .n{font-weight:600;line-height:1.2}
+.tile .s{margin-top:auto;font-size:13px;color:var(--muted);display:flex;justify-content:space-between;gap:6px}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);box-shadow:0 -6px 18px rgba(0,0,0,.12);padding-bottom:env(safe-area-inset-bottom,0px)}
+.sheet .in{max-width:1080px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.sheet .what{flex:1 1 200px;min-width:0}
+.sheet .what strong{display:block;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stepper{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.stepper button{border:0;background:var(--sunk);color:var(--fg);width:40px;height:40px;font-size:20px;cursor:pointer}
+.stepper input{width:64px;border:0;border-radius:0;text-align:center;font-family:var(--f-num)}
+.motivos{display:inline-flex;gap:6px;flex-wrap:wrap}
+.motivos button{border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:8px;padding:9px 12px;font:600 14px var(--f-body);cursor:pointer}
+.motivos button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(110px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-weight:600;z-index:20;font-size:14px;max-width:calc(100% - 32px)}
+.empty{text-align:center;padding:32px 16px;color:var(--muted);background:var(--surface);border:1px dashed var(--line);border-radius:var(--r)}
+.empty h3{color:var(--fg);margin-bottom:6px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.section{margin-top:22px}
+.pinbox{max-width:380px;margin:48px auto;display:flex;flex-direction:column;gap:8px;text-align:center}
+.pinform{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.pinform input{text-align:center;font:500 22px var(--f-num);letter-spacing:.3em}
+.ajustes{display:flex;flex-direction:column;gap:4px}
+.empbox{position:relative;flex:1 1 160px;min-width:0}
+.empbox input.picked{border-color:var(--ok);background:var(--ok-bg);font-weight:600}
+.empsug{position:absolute;left:0;right:0;bottom:calc(100% + 6px);background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.18);overflow:hidden;z-index:8}
+.empsug button{display:block;width:100%;text-align:left;border:0;background:transparent;color:var(--fg);font:600 15px var(--f-body);padding:11px 12px;cursor:pointer;border-bottom:1px solid var(--line)}
+.empsug button:last-child{border-bottom:0}
+.empsug button:hover,.empsug button:focus-visible{background:var(--sunk);outline:none}
+.empsug .nohit{padding:11px 12px;color:var(--muted);font-size:14px}
+input.err{border-color:var(--bad);box-shadow:0 0 0 2px var(--bad-bg)}
+.catblock{margin-top:18px}
+.catblock:first-of-type{margin-top:6px}
+.cathead{font-size:20px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;display:flex;align-items:baseline;gap:8px;padding-bottom:6px;border-bottom:2px solid var(--line)}
+.cathead .cn,.catrow .cn{font:500 12px var(--f-num);color:var(--muted)}
+.togcat{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:8px;width:100%;cursor:pointer;font:inherit;text-transform:inherit;letter-spacing:inherit;color:inherit;border-radius:6px}
+.togcat:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.togcat .hint{margin-left:auto;font:600 12px var(--f-body);letter-spacing:.04em;color:var(--muted);text-transform:none}
+.togcat:hover .hint{color:var(--accent)}
+.chev{flex:none;transition:transform .15s}
+.chev.off{transform:rotate(-90deg)}
+@media (prefers-reduced-motion:reduce){.chev{transition:none}}
+tr.catrow td{background:var(--sunk);font-family:var(--f-display);font-weight:600;font-size:16px;text-transform:uppercase;letter-spacing:.04em;padding-top:12px;color:var(--fg)}
+@media (prefers-reduced-motion:no-preference){.tile,.btn{transition:border-color .12s,box-shadow .12s,opacity .12s}}
+</style>
+
+<header class="top"><div class="in">
+  <div class="brand"><i></i>Inventario de Barra</div>
+  <div class="spacer"></div>
+  <div class="seg" id="modeSeg" hidden>
+    <button id="modeBarra" aria-pressed="true">Barra</button>
+    <button id="modeAdmin" aria-pressed="false">Admin</button>
+  </div>
+  <span class="status" id="status">Conectando…</span>
+</div></header>
+
+<main class="wrap" id="app">
+  <div class="notice" id="boot">Cargando inventario…</div>
+</main>
+<div id="sheetHost"></div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const UNIDADES=["botella","lata","barril","caja","kg","litro","bolsa","unidad"];
+const MOTIVOS=[["personal","Personal"],["cocina","Cocina"],["merma","Rotura / merma"]];
+const PLANTILLA=[
+ ["Cerveza botella 1/3","Cervezas","botella",48],["Cerveza barril 30 L","Cervezas","barril",1],
+ ["Refresco cola lata","Refrescos","lata",24],["Refresco limón lata","Refrescos","lata",12],["Tónica","Refrescos","botella",12],
+ ["Agua 50 cl","Refrescos","botella",24],["Tequila blanco 70 cl","Destilados","botella",2],["Mezcal 70 cl","Destilados","botella",1],
+ ["Ron 70 cl","Destilados","botella",2],["Ginebra 70 cl","Destilados","botella",2],["Vodka 70 cl","Destilados","botella",1],
+ ["Whisky 70 cl","Destilados","botella",1],["Vino tinto","Vinos","botella",6],["Vino blanco","Vinos","botella",6],
+ ["Limones","Fruta","kg",3],["Hielo","Otros","bolsa",4]];
+
+const S={db:null,user:null,uid:null,canEdit:false,canWrite:true,mode:"barra",tab:"stock",
+  productos:[],compras:[],salidas:[],empleados:[],loaded:{p:false,c:false,s:false,e:false},emp:null,empQ:"",
+  sel:null,qty:1,motivo:"personal",nota:"",empleado:"",cat:"Todas",q:"",names:{},filtroMotivo:"todos",busy:false};
+
+const $=s=>document.querySelector(s);
+const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt=n=>{const x=Math.round(n*100)/100;return x.toLocaleString("es-ES",{maximumFractionDigits:2})};
+const eur=n=>n.toLocaleString("es-ES",{style:"currency",currency:"EUR"});
+const fecha=ts=>new Date(ts).toLocaleString("es-ES",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"});
+function toast(t){const el=$("#toast");el.textContent=t;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>el.hidden=true,2200)}
+
+function stockMap(){
+  const m={};S.productos.forEach(p=>m[p.id]={in:0,out:0,coste:0,qc:0});
+  S.compras.forEach(c=>{const r=m[c.productoId];if(r){r.in+=+c.cantidad||0;if(c.coste>0){r.coste+=+c.coste;r.qc+=+c.cantidad||0}}});
+  S.salidas.forEach(s=>{const r=m[s.productoId];if(r)r.out+=+s.cantidad||0});
+  return m;
+}
+function nivel(st,min){if(st<=0)return"bad";if(min>0&&st<=min)return"warn";return"ok"}
+const NIVEL_TXT={ok:"OK",warn:"Bajo",bad:"Agotado"};
+const prod=id=>S.productos.find(p=>p.id===id);
+const quien=id=>!id?"—":id===S.uid?"Tú":(S.names[id]||"Alguien");
+
+async function resolveNames(){return;
+  if(!S.user||!S.user.profiles)return;
+  const ids=[...new Set([...S.compras,...S.salidas].map(x=>x.por).filter(Boolean))].filter(i=>!(i in S.names));
+  if(!ids.length)return;
+  try{const ps=await S.user.profiles(ids);ids.forEach(i=>S.names[i]=(ps&&ps[i]&&ps[i].name)||"Alguien");render()}catch(e){}
+}
+
+/* ---------- Render ---------- */
+function render(){
+  const app=$("#app");
+  const ready=S.loaded.p&&S.loaded.c&&S.loaded.s&&S.loaded.e;
+  if(!S.db){return}
+  if(!ready){app.innerHTML='<div class="notice">Cargando inventario…</div>';$("#sheetHost").innerHTML="";return}
+  $("#modeSeg").hidden=false;
+  $("#modeBarra").setAttribute("aria-pressed",S.mode==="barra");
+  $("#modeAdmin").setAttribute("aria-pressed",S.mode==="admin");
+  if(S.mode==="admin"){S.unlocked?renderAdmin():renderPin()}else renderBarra();
+}
+
+const CAT_ORDER=["Refrescos","Cervezas","Mezcladores","Tequila","Licores"];
+const catOf=p=>p.categoria||"Otros";
+const catIdx=c=>{const i=CAT_ORDER.indexOf(c);return i<0?99:i};
+const porCat=(a,b)=>catIdx(catOf(a))-catIdx(catOf(b))||catOf(a).localeCompare(catOf(b),"es")||(a.ts||0)-(b.ts||0);
+let COLL=new Set();try{COLL=new Set(JSON.parse(localStorage.getItem("inv-colapsadas")||"[]"))}catch(e){}
+const isColl=c=>COLL.has(c);
+function togCat(c){COLL.has(c)?COLL.delete(c):COLL.add(c);try{localStorage.setItem("inv-colapsadas",JSON.stringify([...COLL]))}catch(e){}render()}
+const chev=c=>`<svg class="chev${isColl(c)?" off":""}" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const togBtn=(c,n)=>`<button class="togcat" data-togcat="${esc(c)}" aria-expanded="${!isColl(c)}">${chev(c)}<span class="ct">${esc(c)}</span> <span class="cn">${n}</span><span class="hint">${isColl(c)?"Mostrar":"Ocultar"}</span></button>`;
+function showSug(){const box=$("#empSug"),inp=$("#emp");if(!box)return;const q=S.empQ.trim().toLowerCase();
+  if(!q){hideSug();return}
+  const norm=s=>s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");const nq=norm(q);
+  const hits=S.empleados.filter(e=>norm(e.nombre).includes(nq)).sort((a,b)=>norm(a.nombre).startsWith(nq)===norm(b.nombre).startsWith(nq)?a.nombre.localeCompare(b.nombre,"es"):norm(a.nombre).startsWith(nq)?-1:1).slice(0,6);
+  box.innerHTML=hits.length?hits.map(e=>`<button type="button" role="option" data-pickemp="${e.id}">${esc(e.nombre)}</button>`).join(""):'<div class="nohit">Nadie con ese nombre</div>';
+  box.hidden=false;inp.setAttribute("aria-expanded","true")}
+function hideSug(){const box=$("#empSug");if(box){box.hidden=true;$("#emp").setAttribute("aria-expanded","false")}}
+document.addEventListener("keydown",ev=>{if(ev.target.id==="emp"){if(ev.key==="Escape")hideSug();if(ev.key==="Enter"){const f=document.querySelector("#empSug:not([hidden]) [data-pickemp]");if(f){ev.preventDefault();f.click()}}}});
+document.addEventListener("focusout",ev=>{if(ev.target.id==="emp")setTimeout(()=>{if(!document.activeElement||!document.activeElement.closest(".empbox"))hideSug()},150)});
+function tabEmpleados(){const es=[...S.empleados].sort((a,b)=>a.nombre.localeCompare(b.nombre,"es"));
+  return `<form class="form" id="fEmp"><div class="field wide"><span class="label">Nombre del empleado</span><input id="eNom" required placeholder="Nombre o apodo"></div><button class="btn" type="submit">Añadir empleado</button></form>
+  <p class="status" style="margin:-6px 0 12px">El personal no ve esta lista: al registrar una salida, escribe su nombre y elige entre las coincidencias.</p>
+  ${es.length?`<div class="tablebox"><table><thead><tr><th>Empleado</th><th class="r">Salidas registradas</th><th></th></tr></thead><tbody>${es.map(e=>`<tr><td><b>${esc(e.nombre)}</b></td><td class="r num">${S.salidas.filter(s=>s.empleadoId===e.id).length}</td><td class="r">${confirmBtn("empleados",e.id)}</td></tr>`).join("")}</tbody></table></div>`:'<div class="empty"><h3>Sin empleados</h3><p>Añade a tu equipo para que puedan registrar salidas.</p></div>'}`}
+function grupos(list){const g=[];list.forEach(p=>{const c=catOf(p);let last=g[g.length-1];if(!last||last.cat!==c){last={cat:c,items:[]};g.push(last)}last.items.push(p)});return g}
+function renderBarra(){
+  const app=$("#app"),m=stockMap();
+  const activos=S.productos.filter(p=>p.activo!==false).sort(porCat);
+  if(!activos.length){
+    app.innerHTML=`<div class="section empty"><h3>Aún no hay productos en la barra</h3><p>${S.canEdit?"Ve a <b>Admin → Productos</b> para dar de alta lo que tienes en barra.":"El encargado tiene que dar de alta los productos antes de registrar salidas."}</p></div>`;
+    $("#sheetHost").innerHTML="";return;
+  }
+  const cats=["Todas",...new Set(activos.map(p=>p.categoria||"Otros"))];
+  const q=S.q.trim().toLowerCase();
+  const lista=activos.filter(p=>(S.cat==="Todas"||(p.categoria||"Otros")===S.cat)&&(!q||p.nombre.toLowerCase().includes(q)));
+  const mias=S.salidas.slice(0,8);
+  app.innerHTML=`
+   ${S.canWrite?"":'<div class="notice bad">Tu acceso es solo de lectura. Pide al encargado acceso de colaborador para registrar salidas.</div>'}
+   <div class="search"><input id="q" type="search" placeholder="Buscar producto…" value="${esc(S.q)}" aria-label="Buscar producto"></div>
+   <div class="cats">${cats.map(c=>`<button data-cat="${esc(c)}" aria-pressed="${c===S.cat}">${esc(c)}</button>`).join("")}</div>
+   ${lista.length?grupos(lista).map(g=>{const cerrada=isColl(g.cat)&&!q&&S.cat==="Todas";return `<section class="catblock"><h3 class="cathead">${q||S.cat!=="Todas"?`<span class="ct">${esc(g.cat)}</span> <span class="cn">${g.items.length}</span>`:togBtn(g.cat,g.items.length)}</h3>
+   ${cerrada?"":`<div class="grid">${g.items.map(p=>{const r=m[p.id],st=r.in-r.out,lv=nivel(st,+p.minimo||0);
+     return `<button class="tile" data-sel="${p.id}" aria-pressed="${S.sel===p.id}"><span class="n">${esc(p.nombre)}</span>
+     <span class="s"><span class="num">${fmt(st)} ${esc(p.unidad)}</span><span class="pill ${lv}">${NIVEL_TXT[lv]}</span></span></button>`}).join("")}</div>`}</section>`}).join(""):'<div class="empty">Nada coincide con la búsqueda.</div>'}
+   <div class="section"><h3>Últimas salidas</h3>
+   ${mias.length?`<div class="tablebox" style="margin-top:8px"><table><thead><tr><th>Cuándo</th><th>Producto</th><th class="r">Cant.</th><th>Motivo</th><th>Empleado</th><th></th></tr></thead><tbody>
+   ${mias.map(s=>{const p=prod(s.productoId);const reciente=Date.now()-s.ts<15*60e3;
+     return `<tr><td>${fecha(s.ts)}</td><td>${esc(p?p.nombre:"(borrado)")}</td><td class="r num">${fmt(s.cantidad)}</td><td class="m-${esc(s.motivo)}">${esc(motivoTxt(s.motivo))}</td><td>${esc(s.empleado||"—")}</td>
+     <td class="r">${reciente&&S.canWrite?`<button class="btn danger" data-undo="${s.id}">Deshacer</button>`:""}</td></tr>`}).join("")}
+   </tbody></table></div>`:'<p class="status">Todavía no has registrado ninguna salida.</p>'}</div>`;
+  renderSheet(m);
+}
+const motivoTxt=k=>(MOTIVOS.find(x=>x[0]===k)||[k,k])[1];
+
+function renderSheet(m){
+  const host=$("#sheetHost");
+  if(!S.canWrite){host.innerHTML="";return}
+  const p=S.sel&&prod(S.sel);
+  const ae=document.activeElement,keep=ae&&["emp","nota","qty"].includes(ae.id)?{id:ae.id,s:ae.selectionStart,e:ae.selectionEnd,sug:!!(document.querySelector("#empSug:not([hidden])"))}:null;
+  setTimeout(()=>{if(!keep)return;const el=document.getElementById(keep.id);if(!el)return;el.focus();try{el.setSelectionRange(keep.s,keep.e)}catch(e){}if(keep.sug)showSug()},0);
+  host.innerHTML=`<div class="sheet"><div class="in">
+   <div class="what"><span class="label">Salida</span><strong>${p?esc(p.nombre):"Elige un producto"}</strong></div>
+   <div class="stepper"><button id="menos" aria-label="Restar">−</button><input id="qty" inputmode="decimal" value="${S.qty}" aria-label="Cantidad"><button id="mas" aria-label="Sumar">+</button></div>
+   <div class="motivos">${MOTIVOS.map(([k,t])=>`<button data-mot="${k}" aria-pressed="${S.motivo===k}">${t}</button>`).join("")}</div>
+   <div class="empbox"><input id="emp" placeholder="¿Quién lo toma?" value="${esc(S.emp?S.emp.nombre:S.empQ)}" aria-label="Empleado: escribe para buscar" autocomplete="off" spellcheck="false" class="${S.empErr?"err":""}${S.emp?" picked":""}" role="combobox" aria-autocomplete="list" aria-controls="empSug" aria-expanded="false"><div id="empSug" class="empsug" role="listbox" hidden></div></div>
+   <input id="nota" placeholder="Nota (opcional)" value="${esc(S.nota)}" style="flex:1 1 140px;width:auto">
+   <button class="btn" id="registrar" ${p&&!S.busy?"":"disabled"}>Registrar salida</button>
+  </div></div>`;
+}
+
+function renderAdmin(){
+  $("#sheetHost").innerHTML="";
+  const app=$("#app"),m=stockMap();
+  const ps=[...S.productos].sort((a,b)=>a.nombre.localeCompare(b.nombre,"es"));
+  let bajos=0,agot=0,valor=0;
+  ps.filter(p=>p.activo!==false).forEach(p=>{const r=m[p.id],st=r.in-r.out,lv=nivel(st,+p.minimo||0);if(lv==="warn")bajos++;if(lv==="bad")agot++;if(r.qc>0&&st>0)valor+=st*(r.coste/r.qc)});
+  const tabs=[["stock","Stock"],["compras","Compras"],["salidas","Salidas"],["productos","Productos"],["empleados","Empleados"],["ajustes","Ajustes"]];
+  let body="";
+  if(S.tab==="stock")body=tabStock(ps,m);
+  if(S.tab==="compras")body=tabCompras(ps);
+  if(S.tab==="salidas")body=tabSalidas();
+  if(S.tab==="productos")body=tabProductos(ps);
+  if(S.tab==="empleados")body=tabEmpleados();
+  if(S.tab==="ajustes")body=tabAjustes();
+  app.innerHTML=`
+   <div class="summary">
+    <span class="chip">Productos <b>${ps.filter(p=>p.activo!==false).length}</b></span>
+    <span class="chip warn">Stock bajo <b>${bajos}</b></span>
+    <span class="chip bad">Agotados <b>${agot}</b></span>
+    <span class="chip ok">Valor en barra <b>${eur(valor)}</b></span>
+    <button class="btn ghost" id="lock" style="margin-left:auto;padding:6px 12px">Bloquear Admin</button>
+   </div>
+   <div class="tabs" role="tablist">${tabs.map(([k,t])=>`<button role="tab" data-tab="${k}" aria-selected="${S.tab===k}">${t}</button>`).join("")}</div>
+   ${body}`;
+}
+
+function tabStock(ps,m){
+  const act=ps.filter(p=>p.activo!==false);
+  if(!act.length)return emptyProductos();
+  return `<div class="tablebox"><table><thead><tr><th>Producto</th><th class="r">Entradas</th><th class="r">Salidas</th><th class="r">Stock</th><th class="r">Mínimo</th><th>Estado</th></tr></thead><tbody>
+  ${grupos([...act].sort(porCat)).map(g=>`<tr class="catrow"><td colspan="6">${togBtn(g.cat,g.items.length)}</td></tr>`+(isColl(g.cat)?[]:g.items).map(p=>{const r=m[p.id],st=r.in-r.out,lv=nivel(st,+p.minimo||0),min=+p.minimo||0,pct=Math.max(0,Math.min(100,min>0?st/(min*2)*100:(st>0?100:0)));
+   return `<tr><td><b>${esc(p.nombre)}</b></td><td class="r num">${fmt(r.in)}</td><td class="r num">${fmt(r.out)}</td>
+   <td class="r"><span class="stock"><span class="bar"><span style="width:${pct}%;background:var(--${lv})"></span></span><span class="num">${fmt(st)}</span> ${esc(p.unidad)}</span></td>
+   <td class="r num">${min?fmt(min):"—"}</td><td><span class="pill ${lv}">${NIVEL_TXT[lv]}</span></td></tr>`}).join("")).join("")}
+  </tbody></table></div>`;
+}
+
+function tabCompras(ps){
+  const act=ps.filter(p=>p.activo!==false);
+  if(!act.length)return emptyProductos();
+  const hist=S.compras.slice(0,200);
+  return `<form class="form" id="fCompra">
+    <div class="field wide"><span class="label">Producto</span><select id="cProd" required>${grupos([...act].sort(porCat)).map(g=>`<optgroup label="${esc(g.cat)}">${g.items.map(p=>`<option value="${p.id}">${esc(p.nombre)} (${esc(p.unidad)})</option>`).join("")}</optgroup>`).join("")}</select></div>
+    <div class="field"><span class="label">Cantidad</span><input id="cQty" inputmode="decimal" required placeholder="12"></div>
+    <div class="field"><span class="label">Coste total €</span><input id="cCoste" inputmode="decimal" placeholder="Opcional"></div>
+    <div class="field"><span class="label">Proveedor</span><input id="cProv" placeholder="Opcional"></div>
+    <button class="btn" type="submit" id="cBtn">Añadir compra</button>
+  </form>
+  ${hist.length?`<div class="tablebox"><table><thead><tr><th>Fecha</th><th>Producto</th><th class="r">Cant.</th><th class="r">Coste</th><th>Proveedor</th><th></th></tr></thead><tbody>
+  ${hist.map(c=>{const p=prod(c.productoId);return `<tr><td>${fecha(c.ts)}</td><td>${esc(p?p.nombre:"(borrado)")}</td><td class="r num">${fmt(c.cantidad)} ${esc(p?p.unidad:"")}</td><td class="r num">${c.coste>0?eur(+c.coste):"—"}</td><td>${esc(c.proveedor||"—")}</td>
+  <td class="r">${confirmBtn("compras",c.id)}</td></tr>`}).join("")}</tbody></table></div>`:'<div class="empty"><h3>Sin compras registradas</h3><p>Apunta la primera entrega con el formulario de arriba; el stock se recalcula al momento.</p></div>'}`;
+}
+
+function tabSalidas(){
+  const f=S.filtroMotivo;
+  const lista=S.salidas.filter(s=>f==="todos"||s.motivo===f).slice(0,300);
+  const tot={};S.salidas.forEach(s=>tot[s.motivo]=(tot[s.motivo]||0)+1);
+  return `<div class="row"><span class="label">Filtrar</span><div class="motivos">
+   ${[["todos","Todas"],...MOTIVOS].map(([k,t])=>`<button data-fm="${k}" aria-pressed="${f===k}">${t}${k!=="todos"?` · ${tot[k]||0}`:""}</button>`).join("")}</div></div>
+  ${lista.length?`<div class="tablebox"><table><thead><tr><th>Fecha</th><th>Producto</th><th class="r">Cant.</th><th>Motivo</th><th>Nota</th><th>Empleado</th><th></th></tr></thead><tbody>
+  ${lista.map(s=>{const p=prod(s.productoId);return `<tr><td>${fecha(s.ts)}</td><td>${esc(p?p.nombre:"(borrado)")}</td><td class="r num">${fmt(s.cantidad)} ${esc(p?p.unidad:"")}</td><td class="m-${esc(s.motivo)}">${esc(motivoTxt(s.motivo))}</td><td>${esc(s.nota||"—")}</td><td><b>${esc(s.empleado||"—")}</b></td>
+  <td class="r">${confirmBtn("salidas",s.id)}</td></tr>`}).join("")}</tbody></table></div>`:'<div class="empty"><h3>Sin salidas</h3><p>Aquí aparecen las salidas que registra el personal desde la vista Barra.</p></div>'}`;
+}
+
+function tabProductos(ps){
+  return `<form class="form" id="fProd">
+    <div class="field wide"><span class="label">Nombre</span><input id="pNom" required placeholder="Tequila reposado 70 cl"></div>
+    <div class="field"><span class="label">Categoría</span><input id="pCat" list="catList" placeholder="Destilados"><datalist id="catList">${[...new Set(ps.map(p=>p.categoria).filter(Boolean))].map(c=>`<option value="${esc(c)}">`).join("")}</datalist></div>
+    <div class="field"><span class="label">Unidad</span><select id="pUni">${UNIDADES.map(u=>`<option>${u}</option>`).join("")}</select></div>
+    <div class="field"><span class="label">Stock mínimo</span><input id="pMin" inputmode="decimal" placeholder="2"></div>
+    <button class="btn" type="submit">Añadir producto</button>
+  </form>
+  ${ps.length?`<div class="tablebox"><table><thead><tr><th>Producto</th><th>Unidad</th><th class="r">Mínimo</th><th>Visible en barra</th><th></th></tr></thead><tbody>
+  ${grupos([...ps].sort(porCat)).map(g=>`<tr class="catrow"><td colspan="5">${togBtn(g.cat,g.items.length)}</td></tr>`+(isColl(g.cat)?[]:g.items).map(p=>`<tr><td><b>${esc(p.nombre)}</b></td><td>${esc(p.unidad)}</td>
+   <td class="r"><input class="num" style="width:80px;text-align:right" data-min="${p.id}" value="${p.minimo??""}" aria-label="Mínimo de ${esc(p.nombre)}"></td>
+   <td><button class="btn ghost" data-act="${p.id}" style="padding:6px 12px">${p.activo===false?"Oculto":"Sí"}</button></td>
+   <td class="r">${confirmBtn("productos",p.id)}</td></tr>`).join("")).join("")}</tbody></table></div>`:
+  `<div class="empty"><h3>Sin productos todavía</h3><p>Añádelos uno a uno o empieza con una lista típica de barra y ajústala.</p><p style="margin-top:12px"><button class="btn" id="plantilla">Cargar lista típica (${PLANTILLA.length} productos)</button></p></div>`}`;
+}
+function emptyProductos(){return `<div class="empty"><h3>Primero da de alta los productos</h3><p><button class="btn" data-tab="productos">Ir a Productos</button></p></div>`}
+let pendingDel=null;
+function confirmBtn(col,id){const k=col+"/"+id;return pendingDel===k?`<button class="btn danger" data-del="${k}"><b>¿Borrar? Sí</b></button>`:`<button class="btn danger" data-ask="${k}" aria-label="Borrar">Borrar</button>`}
+
+/* ---------- Acciones ---------- */
+const num=v=>parseFloat(String(v).replace(",","."));
+async function guardar(fn,okMsg){
+  try{await fn();if(okMsg)toast(okMsg)}
+  catch(e){
+    if(e&&e.code==="invalid_argument"){toast("Ese registro ya no existe");}
+    else if(e&&e.name==="QuotaExceededError"){toast("El navegador está lleno: descarga una copia y borra registros antiguos");}
+    else toast("No se pudo guardar, inténtalo otra vez");
+  }
+}
+
+document.addEventListener("click",async ev=>{
+  const t=ev.target.closest("button");if(!t)return;
+  if(t.id==="modeBarra"){S.mode="barra";render();return}
+  if(t.id==="modeAdmin"){S.mode="admin";render();return}
+  if(t.dataset.tab){S.tab=t.dataset.tab;pendingDel=null;render();return}
+  if(t.id==="lock"){S.unlocked=false;S.mode="barra";render();return}
+  if(t.id==="pinCancel"){S.mode="barra";render();return}
+  if(t.id==="exportar"){const data=JSON.parse(JSON.stringify(STORE));delete data.config;data.exportado=new Date().toISOString();
+    const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,1)],{type:"application/json"}));
+    a.download="inventario-barra-"+new Date().toISOString().slice(0,10)+".json";document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500);toast("Copia descargada");return}
+  if(t.id==="importNo"){S.pendingImport=null;render();return}
+  if(t.id==="importOk"){const d=S.pendingImport.data;COLS.forEach(c=>STORE[c]=d[c]);try{persist();toast("Datos restaurados")}catch(e){toast("No se pudo guardar la copia")}S.pendingImport=null;COLS.forEach(emitCol);return}
+  if(t.dataset.pickemp){const e=S.empleados.find(x=>x.id===t.dataset.pickemp);if(e){S.emp={id:e.id,nombre:e.nombre};S.empQ="";const i=$("#emp");i.value=e.nombre;i.classList.add("picked");i.classList.remove("err");S.empErr=false;hideSug()}return}
+  if(t.dataset.togcat!==undefined){togCat(t.dataset.togcat);return}
+  if(t.dataset.cat){S.cat=t.dataset.cat;render();return}
+  if(t.dataset.sel){S.sel=t.dataset.sel;S.qty=1;render();return}
+  if(t.dataset.mot){S.motivo=t.dataset.mot;renderSheet();return}
+  if(t.dataset.fm){S.filtroMotivo=t.dataset.fm;render();return}
+  if(t.id==="mas"||t.id==="menos"){const v=num($("#qty").value)||0;S.qty=Math.max(0.5,Math.round((v+(t.id==="mas"?1:-1))*100)/100);$("#qty").value=S.qty;return}
+  if(t.id==="registrar"){
+    const q=num($("#qty").value);S.nota=$("#nota").value.trim();
+    if(!S.emp){const t=$("#emp").value.trim().toLowerCase();const ex=S.empleados.filter(e=>e.nombre.toLowerCase()===t);if(ex.length===1)S.emp={id:ex[0].id,nombre:ex[0].nombre}}
+    if(!(q>0)){toast("Pon una cantidad mayor que 0");return}
+    if(!S.emp){S.empErr=true;const e=$("#emp");e.classList.add("err");e.focus();toast(S.empleados.length?"Escribe y elige de la lista quién lo toma":"El encargado debe dar de alta empleados en Admin");return}
+    const p=prod(S.sel);if(!p)return;
+    S.busy=true;renderSheet();
+    await guardar(()=>S.db.collection("salidas").add({productoId:p.id,cantidad:q,motivo:S.motivo,nota:S.nota,empleado:S.emp.nombre,empleadoId:S.emp.id,por:S.uid||"",ts:Date.now()}),`Salida registrada: ${fmt(q)} ${p.unidad} de ${p.nombre}`);
+    S.busy=false;S.qty=1;S.nota="";S.emp=null;S.empQ="";S.sel=null;render();return;
+  }
+  if(t.dataset.undo){await guardar(()=>S.db.doc("salidas/"+t.dataset.undo).delete(),"Salida deshecha");return}
+  if(t.dataset.ask){pendingDel=t.dataset.ask;render();setTimeout(()=>{if(pendingDel===t.dataset.ask){pendingDel=null;render()}},4000);return}
+  if(t.dataset.del){const k=t.dataset.del;pendingDel=null;await guardar(()=>S.db.doc(k).delete(),"Borrado");render();return}
+  if(t.dataset.act){const p=prod(t.dataset.act);await guardar(()=>S.db.doc("productos/"+p.id).update({activo:p.activo===false}));return}
+  if(t.id==="plantilla"){t.disabled=true;
+    for(const [nombre,categoria,unidad,minimo] of PLANTILLA){await guardar(()=>S.db.collection("productos").add({nombre,categoria,unidad,minimo,activo:true,ts:Date.now()}))}
+    toast("Lista cargada. Ajusta nombres y mínimos a tu barra");return}
+});
+document.addEventListener("input",ev=>{
+  if(ev.target.id==="nota"){S.nota=ev.target.value;return}
+  if(ev.target.id==="emp"){S.empQ=ev.target.value;S.emp=null;ev.target.classList.remove("picked");if(S.empErr){S.empErr=false;ev.target.classList.remove("err")}showSug();return}
+  if(ev.target.id==="qty"){const v=num(ev.target.value);if(v>0)S.qty=v;return}
+  if(ev.target.id==="q"){S.q=ev.target.value;const pos=ev.target.selectionStart;render();const el=$("#q");el.focus();el.setSelectionRange(pos,pos)}
+});
+document.addEventListener("change",async ev=>{
+  if(ev.target.id==="importFile"){const f=ev.target.files[0];if(!f)return;
+    try{const o=JSON.parse(await f.text());if(!validBackup(o))throw 0;S.pendingImport={name:f.name,data:o,count:COLS.reduce((a,c)=>a+Object.keys(o[c]).length,0)};render()}
+    catch(e){toast("Ese archivo no es una copia del inventario")}ev.target.value="";return}
+  const id=ev.target.dataset.min;
+  if(id){const v=num(ev.target.value);await guardar(()=>S.db.doc("productos/"+id).update({minimo:v>0?v:0}),"Mínimo actualizado")}
+});
+document.addEventListener("submit",async ev=>{
+  ev.preventDefault();
+  if(ev.target.id==="fPin"){const p1=$("#pin1").value.trim();
+    if(!/^\d{4,8}$/.test(p1)){toast("El PIN debe tener de 4 a 8 cifras");return}
+    if(!STORE.config.pin){if(p1!==$("#pin2").value.trim()){toast("Los PIN no coinciden");return}STORE.config.pin=await hashPin(p1);persist();S.unlocked=true;S.tab="stock";armIdle();render();toast("PIN guardado");return}
+    if(await hashPin(p1)===STORE.config.pin){S.unlocked=true;armIdle();render()}else{toast("PIN incorrecto");$("#pin1").value="";$("#pin1").focus()}return}
+  if(ev.target.id==="fNewPin"){const a=$("#np0").value.trim(),b=$("#np1").value.trim();
+    if(await hashPin(a)!==STORE.config.pin){toast("El PIN actual no es correcto");return}
+    if(!/^\d{4,8}$/.test(b)){toast("El PIN nuevo debe tener de 4 a 8 cifras");return}
+    STORE.config.pin=await hashPin(b);persist();ev.target.reset();toast("PIN cambiado");return}
+  if(ev.target.id==="fEmp"){const nombre=$("#eNom").value.trim();if(!nombre)return;
+    if(S.empleados.some(e=>e.nombre.toLowerCase()===nombre.toLowerCase())){toast("Ese empleado ya existe");return}
+    await guardar(()=>S.db.collection("empleados").add({nombre,ts:Date.now()}),"Empleado añadido")}
+  if(ev.target.id==="fProd"){
+    const nombre=$("#pNom").value.trim();if(!nombre)return;
+    const data={nombre,categoria:$("#pCat").value.trim()||"Otros",unidad:$("#pUni").value,minimo:num($("#pMin").value)||0,activo:true,ts:Date.now()};
+    await guardar(()=>S.db.collection("productos").add(data),"Producto añadido");
+  }
+  if(ev.target.id==="fCompra"){
+    const q=num($("#cQty").value);if(!(q>0)){toast("Pon una cantidad mayor que 0");return}
+    const pid=$("#cProd").value,p=prod(pid);
+    const data={productoId:pid,cantidad:q,coste:num($("#cCoste").value)||0,proveedor:$("#cProv").value.trim(),por:S.uid||"",ts:Date.now()};
+    $("#cBtn").disabled=true;
+    await guardar(()=>S.db.collection("compras").add(data),`Compra añadida: ${fmt(q)} ${p.unidad} de ${p.nombre}`);
+  }
+});
+
+/* ---------- Datos locales (este dispositivo) ---------- */
+const LS_KEY="inventario-barra-v1";
+const SEED={"productos": {"coca-cola-regular": {"nombre": "Coca-Cola Regular", "categoria": "Refrescos", "unidad": "botella", "minimo": 0, "activo": true, "ts": 1794481000001}, "coca-cola-zero": {"nombre": "Coca-Cola Zero", "categoria": "Refrescos", "unidad": "botella", "minimo": 0, "activo": true, "ts": 1794481000002}, "coca-cola-zero-zero": {"nombre": "Coca-Cola Zero Zero", "categoria": "Refrescos", "unidad": "botella", "minimo": 0, "activo": true, "ts": 1794481000003}, "sprite": {"nombre": "Sprite", "categoria": "Refrescos", "unidad": "botella", "minimo": 0, "activo": true, "ts": 1794481000004}, "fanta-limon": {"nombre": "Fanta Limón", "categoria": "Refrescos", "unidad": "botella", "minimo": 0, "activo": true, "ts": 1794481000005}, "fanta-naranja": {"nombre": "Fanta Naranja", "categoria": "Refrescos", "unidad": "botella", "minimo": 0, "activo": true, "ts": 1794481000006}, "aquarius-limon": {"nombre": "Aquarius Limón", "categoria": "Refrescos", "unidad": "botella", "minimo": 0, "activo": true, "ts": 1794481000007}, "aquarius-naranja": {"nombre": "Aquarius Naranja", "categoria": "Refrescos", "unidad": "botella", "minimo": 0, "activo": true, "ts": 1794481000008}, "fuze-tea": {"nombre": "Fuze Tea", "categoria": "Refrescos", "unidad": "botella", "minimo": 0, "activo": true, "ts": 1794481000009}, "corona": {"nombre": "Corona", "categoria": "Cervezas", "unidad": "botella", "minimo": 0, "activo": true, "ts": 1794481000010}, "modelo-especial": {"nombre": "Modelo Especial", "categoria": "Cervezas", "unidad": "botella", "minimo": 0, "activo": true, "ts": 1794481000011}, "modelo-negra": {"nombre": "Modelo Negra", "categoria": "Cervezas", "unidad": "botella", "minimo": 0, "activo": true, "ts": 1794481000012}, "xx": {"nombre": "XX", "categoria": "Cervezas", "unidad": "botella", "minimo": 0, "activo": true, "ts": 1794481000013}, "pacifico": {"nombre": "Pacífico", "categoria": "Cervezas", "unidad": "botella", "minimo": 0, "activo": true, "ts": 1794481000014}, "radler": {"nombre": "Radler", "categoria": "Cervezas", "unidad": "botella", "minimo": 0, "activo": true, "ts": 1794481000015}, "cerveza-00": {"nombre": "Cerveza 0,0", "categoria": "Cervezas", "unidad": "botella", "minimo": 0, "activo": true, "ts": 1794481000016}, "cerveza-sin-gluten": {"nombre": "Cerveza Sin Gluten", "categoria": "Cervezas", "unidad": "botella", "minimo": 0, "activo": true, "ts": 1794481000017}, "jarabe-natural": {"nombre": "Jarabe Natural", "categoria": "Mezcladores", "unidad": "botella", "minimo": 0, "activo": true, "ts": 1794481000018}, "jarabe-mojito": {"nombre": "Jarabe Mojito", "categoria": "Mezcladores", "unidad": "botella", "minimo": 0, "activo": true, "ts": 1794481000019}, "jarabe-maracuya": {"nombre": "Jarabe Maracuyá", "categoria": "Mezcladores", "unidad": "botella", "minimo": 0, "activo": true, "ts": 1794481000020}, "jarabe-mango": {"nombre": "Jarabe Mango", "categoria": "Mezcladores", "unidad": "botella", "minimo": 0, "activo": true, "ts": 1794481000021}, "jarabe-fresa": {"nombre": "Jarabe Fresa", "categoria": "Mezcladores", "unidad": "botella", "minimo": 0, "activo": true, "ts": 1794481000022}, "zitron-de-lima": {"nombre": "Zitron de Lima", "categoria": "Mezcladores", "unidad": "botella", "minimo": 0, "activo": true, "ts": 1794481000023}, "pistolero": {"nombre": "Pistolero", "categoria": "Tequila", "unidad": "botella", "minimo": 0, "activo": true, "ts": 1794481000024}, "buen-amigo": {"nombre": "Buen Amigo", "categoria": "Tequila", "unidad": "botella", "minimo": 0, "activo": true, "ts": 1794481000025}, "don-julio-blanco": {"nombre": "Don Julio Blanco", "categoria": "Tequila", "unidad": "botella", "minimo": 0, "activo": true, "ts": 1794481000026}, "don-julio-reposado": {"nombre": "Don Julio Reposado", "categoria": "Tequila", "unidad": "botella", "minimo": 0, "activo": true, "ts": 1794481000027}, "don-julio-70": {"nombre": "Don Julio 70", "categoria": "Tequila", "unidad": "botella", "minimo": 0, "activo": true, "ts": 1794481000028}, "1800-blanco": {"nombre": "1800 Blanco", "categoria": "Tequila", "unidad": "botella", "minimo": 0, "activo": true, "ts": 1794481000029}, "ron": {"nombre": "Ron", "categoria": "Licores", "unidad": "botella", "minimo": 0, "activo": true, "ts": 1794481000030}, "vodka": {"nombre": "Vodka", "categoria": "Licores", "unidad": "botella", "minimo": 0, "activo": true, "ts": 1794481000031}, "whiskey": {"nombre": "Whiskey", "categoria": "Licores", "unidad": "botella", "minimo": 0, "activo": true, "ts": 1794481000032}, "gin": {"nombre": "Gin", "categoria": "Licores", "unidad": "botella", "minimo": 0, "activo": true, "ts": 1794481000033}}, "compras": {"ini-coca-cola-regular": {"productoId": "coca-cola-regular", "cantidad": 24, "coste": 0, "proveedor": "Inventario inicial", "por": "", "ts": 1794481100000}, "ini-coca-cola-zero": {"productoId": "coca-cola-zero", "cantidad": 24, "coste": 0, "proveedor": "Inventario inicial", "por": "", "ts": 1794481100001}, "ini-coca-cola-zero-zero": {"productoId": "coca-cola-zero-zero", "cantidad": 24, "coste": 0, "proveedor": "Inventario inicial", "por": "", "ts": 1794481100002}, "ini-sprite": {"productoId": "sprite", "cantidad": 24, "coste": 0, "proveedor": "Inventario inicial", "por": "", "ts": 1794481100003}, "ini-fanta-limon": {"productoId": "fanta-limon", "cantidad": 24, "coste": 0, "proveedor": "Inventario inicial", "por": "", "ts": 1794481100004}, "ini-fanta-naranja": {"productoId": "fanta-naranja", "cantidad": 24, "coste": 0, "proveedor": "Inventario inicial", "por": "", "ts": 1794481100005}, "ini-aquarius-limon": {"productoId": "aquarius-limon", "cantidad": 24, "coste": 0, "proveedor": "Inventario inicial", "por": "", "ts": 1794481100006}, "ini-aquarius-naranja": {"productoId": "aquarius-naranja", "cantidad": 24, "coste": 0, "proveedor": "Inventario inicial", "por": "", "ts": 1794481100007}, "ini-fuze-tea": {"productoId": "fuze-tea", "cantidad": 24, "coste": 0, "proveedor": "Inventario inicial", "por": "", "ts": 1794481100008}, "ini-corona": {"productoId": "corona", "cantidad": 24, "coste": 0, "proveedor": "Inventario inicial", "por": "", "ts": 1794481100009}, "ini-modelo-especial": {"productoId": "modelo-especial", "cantidad": 24, "coste": 0, "proveedor": "Inventario inicial", "por": "", "ts": 1794481100010}, "ini-modelo-negra": {"productoId": "modelo-negra", "cantidad": 24, "coste": 0, "proveedor": "Inventario inicial", "por": "", "ts": 1794481100011}, "ini-xx": {"productoId": "xx", "cantidad": 24, "coste": 0, "proveedor": "Inventario inicial", "por": "", "ts": 1794481100012}, "ini-pacifico": {"productoId": "pacifico", "cantidad": 24, "coste": 0, "proveedor": "Inventario inicial", "por": "", "ts": 1794481100013}, "ini-radler": {"productoId": "radler", "cantidad": 24, "coste": 0, "proveedor": "Inventario inicial", "por": "", "ts": 1794481100014}, "ini-cerveza-00": {"productoId": "cerveza-00", "cantidad": 24, "coste": 0, "proveedor": "Inventario inicial", "por": "", "ts": 1794481100015}, "ini-cerveza-sin-gluten": {"productoId": "cerveza-sin-gluten", "cantidad": 24, "coste": 0, "proveedor": "Inventario inicial", "por": "", "ts": 1794481100016}}, "salidas": {}, "empleados": {"mau": {"nombre": "MAU", "ts": 1794481050000}, "joseph": {"nombre": "Joseph", "ts": 1794481050001}, "laudi": {"nombre": "Laudi", "ts": 1794481050002}, "carlos-m": {"nombre": "Carlos M", "ts": 1794481050003}, "luciano": {"nombre": "Luciano", "ts": 1794481050004}, "carlos-y": {"nombre": "Carlos Y", "ts": 1794481050005}, "tatiana": {"nombre": "Tatiana", "ts": 1794481050006}, "alex": {"nombre": "Alex", "ts": 1794481050007}, "maki": {"nombre": "Maki", "ts": 1794481050008}}};
+let STORE=null;
+function readStore(){try{const r=localStorage.getItem(LS_KEY);if(r)return JSON.parse(r)}catch(e){}return null}
+function persist(){localStorage.setItem(LS_KEY,JSON.stringify(STORE))}
+const LISTEN={};
+const emitCol=col=>(LISTEN[col]||[]).forEach(f=>f());
+const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const COLS=["productos","compras","salidas","empleados"];
+const localDB={
+  collection(col){return{
+    async add(data){const id=newId();STORE[col]=STORE[col]||{};STORE[col][id]=JSON.parse(JSON.stringify(data));persist();emitCol(col);return{id}},
+    orderBy(field,dir){return{onSnapshot(next){
+      const fire=()=>{const docs=Object.entries(STORE[col]||{}).map(([id,d])=>({id,data:()=>d})).sort((a,b)=>((a.data()[field]||0)-(b.data()[field]||0))*(dir==="desc"?-1:1));next({docs,metadata:{fromCache:false}})};
+      (LISTEN[col]=LISTEN[col]||[]).push(fire);fire();return()=>{}}}}
+  }},
+  doc(path){const [col,id]=path.split("/");return{
+    async update(data){if(!STORE[col]||!STORE[col][id])throw{code:"invalid_argument"};Object.assign(STORE[col][id],data);persist();emitCol(col)},
+    async delete(){if(STORE[col])delete STORE[col][id];persist();emitCol(col)}
+  }}
+};
+function storeOk(){try{const k="__t";localStorage.setItem(k,"1");localStorage.removeItem(k);return true}catch(e){return false}}
+
+/* ---------- PIN de encargado ---------- */
+async function hashPin(p){try{const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode("barra:"+p));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}catch(e){return "p:"+p}}
+let idleT=null;
+function armIdle(){clearTimeout(idleT);if(S.unlocked)idleT=setTimeout(()=>{S.unlocked=false;S.mode="barra";render();toast("Admin bloqueado por inactividad")},10*60e3)}
+document.addEventListener("pointerdown",armIdle,true);document.addEventListener("keydown",armIdle,true);
+
+function renderPin(){
+  $("#sheetHost").innerHTML="";
+  const nuevo=!STORE.config||!STORE.config.pin;
+  $("#app").innerHTML=`<div class="pinbox"><h2>${nuevo?"Crea el PIN de encargado":"Acceso de encargado"}</h2>
+  <p class="status">${nuevo?"Elige un PIN de 4 a 8 cifras. Se pedirá para entrar en Admin en este dispositivo.":"Introduce el PIN para entrar en Admin."}</p>
+  <form id="fPin" class="pinform">
+   <input id="pin1" type="password" inputmode="numeric" autocomplete="off" placeholder="PIN" aria-label="PIN" maxlength="8" required>
+   ${nuevo?'<input id="pin2" type="password" inputmode="numeric" autocomplete="off" placeholder="Repite el PIN" aria-label="Repite el PIN" maxlength="8" required>':""}
+   <button class="btn" type="submit">${nuevo?"Guardar PIN y entrar":"Entrar"}</button>
+   <button class="btn ghost" type="button" id="pinCancel">Volver a Barra</button>
+  </form></div>`;
+  setTimeout(()=>{const i=$("#pin1");if(i)i.focus()},0);
+}
+
+function tabAjustes(){
+  const n=COLS.reduce((a,c)=>a+Object.keys(STORE[c]||{}).length,0);
+  return `<div class="ajustes">
+  <section class="form" style="display:block"><h3>Copia de seguridad</h3>
+   <p class="status" style="margin:6px 0 12px">Los datos se guardan solo en el navegador de este dispositivo (${n} registros). Descarga una copia de vez en cuando: si se borran los datos del navegador, podrás recuperarlos desde ese archivo.</p>
+   <div class="row"><button class="btn" id="exportar">Descargar copia</button>
+   <label class="btn ghost" for="importFile" style="display:inline-block">Restaurar desde archivo</label><input id="importFile" type="file" accept=".json,application/json" hidden></div>
+   ${S.pendingImport?`<div class="notice bad">Esto reemplazará todos los datos actuales por los del archivo <b>${esc(S.pendingImport.name)}</b> (${S.pendingImport.count} registros). <div class="row" style="margin:10px 0 0"><button class="btn" id="importOk">Reemplazar datos</button><button class="btn ghost" id="importNo">Cancelar</button></div></div>`:""}
+  </section>
+  <form class="form" id="fNewPin"><div class="field"><span class="label">PIN actual</span><input id="np0" type="password" inputmode="numeric" maxlength="8" required></div>
+   <div class="field"><span class="label">PIN nuevo</span><input id="np1" type="password" inputmode="numeric" maxlength="8" required></div>
+   <button class="btn" type="submit">Cambiar PIN</button></form>
+  </div>`;
+}
+function validBackup(o){return o&&typeof o==="object"&&COLS.every(c=>o[c]&&typeof o[c]==="object")}
+
+/* ---------- Arranque ---------- */
+(()=>{
+  if(!storeOk()){$("#app").innerHTML='<div class="notice bad">Este navegador no permite guardar datos (¿modo incógnito?). Ábrelo en una ventana normal para usar el inventario.</div>';$("#status").textContent="";return}
+  STORE=readStore();
+  if(!validBackup(STORE)){STORE=JSON.parse(JSON.stringify(SEED));STORE.config={};persist()}
+  STORE.config=STORE.config||{};
+  S.db=localDB;S.canEdit=true;S.canWrite=true;S.uid="";
+  window.addEventListener("storage",e=>{if(e.key===LS_KEY){const s=readStore();if(validBackup(s)){STORE=s;STORE.config=STORE.config||{};COLS.forEach(emitCol)}}});
+  const sub=(col,key,order)=>localDB.collection(col).orderBy("ts",order).onSnapshot(snap=>{
+    S[col]=snap.docs.map(d=>({id:d.id,...d.data()}));S.loaded[key]=true;render()});
+  sub("productos","p","asc");sub("compras","c","desc");sub("salidas","s","desc");sub("empleados","e","asc");
+  $("#status").textContent="Guardado en este dispositivo";
+  render();
+})();
+</script>
